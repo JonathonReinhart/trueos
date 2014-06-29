@@ -3431,11 +3431,13 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
     if (status == CAM_REQ_CMP) {
     	mtx_lock(&sc->ciss_mtx);
 	periph = cam_periph_find(path, NULL);
-	sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
-		periph->periph_name, periph->unit_number);
     	mtx_unlock(&sc->ciss_mtx);
 	xpt_free_path(path);
-	return(0);
+	if (periph != NULL) {
+		sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
+			periph->periph_name, periph->unit_number);
+		return(0);
+	}
     }
     sc->ciss_logical[bus][target].cl_name[0] = 0;
     return(ENOENT);

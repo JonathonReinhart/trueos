@@ -4162,9 +4162,7 @@ ciss_notify_thread(void *arg)
     struct ciss_notify		*cn;
 
     sc = (struct ciss_softc *)arg;
-#if __FreeBSD_version >= 500000
     mtx_lock(&sc->ciss_mtx);
-#endif
 
     for (;;) {
 	if (STAILQ_EMPTY(&sc->ciss_notify) != 0 &&
@@ -4199,9 +4197,7 @@ ciss_notify_thread(void *arg)
     sc->ciss_notify_thread = NULL;
     wakeup(&sc->ciss_notify_thread);
 
-#if __FreeBSD_version >= 500000
     mtx_unlock(&sc->ciss_mtx);
-#endif
     kproc_exit(0);
 }
 
@@ -4212,15 +4208,9 @@ static void
 ciss_spawn_notify_thread(struct ciss_softc *sc)
 {
 
-#if __FreeBSD_version > 500005
     if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
 		       &sc->ciss_notify_thread, 0, 0, "ciss_notify%d",
 		       device_get_unit(sc->ciss_dev)))
-#else
-    if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
-		       &sc->ciss_notify_thread, "ciss_notify%d",
-		       device_get_unit(sc->ciss_dev)))
-#endif
 	panic("Could not create notify thread\n");
 }
 

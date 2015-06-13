@@ -151,6 +151,7 @@ SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
+SUBDIR_DEPEND_libxpc= ${_libmach} ${_libdispatch} ${_liblaunch} libbsm libosxsupport libnv libsbuf
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf

@@ -159,7 +159,8 @@ static fo_stat_t mach_port_stat;
 struct fileops mach_fileops  = {
 	.fo_close = mach_port_close,
 	.fo_stat = mach_port_stat,
-	.fo_flags = DFLAG_PASSABLE
+	.fo_fill_kinfo = mach_port_fill_kinfo,
+	.fo_flags = 0,
 };
 
 static int
@@ -222,8 +223,6 @@ mach_port_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 
 	return (0);
 }
-
-
 
 /*
  *	Routine:	ipc_entry_release

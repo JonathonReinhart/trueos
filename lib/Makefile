@@ -113,7 +113,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvgl} \
 	${_libvmmapi} \
 	libwrap \
-        libxpc \
+	${_libxpc} \
 	liby \
 	${_libypclnt} \
 	libyaml \
@@ -240,12 +240,13 @@ _librtld_db=	librtld_db
 
 .if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_BHYVE} != "no"
-_libcfxlite= libcfxlite
-_libdispatch= libdispatch
+_libcfxlite=	libcfxlite
+_libdispatch=	libdispatch
 _liblaunch=	liblaunch
-_libmach= libmach
-_libasl= libasl
+_libmach=	libmach
+_libasl=	libasl
 _libvmmapi=	libvmmapi
+_libxpc=	libxpc
 .endif
 .endif
 

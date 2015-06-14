@@ -192,6 +192,7 @@ SUBDIR=	alias \
 	xargs \
 	xinstall \
 	${_xlint} \
+	${_xpc-tests} \
 	${_xstr} \
 	xz \
 	xzdec \
@@ -354,6 +355,9 @@ SUBDIR+=	telnet
 .endif
 
 .if ${MK_TESTS} != "no"
+.if ${MACHINE_CPUARCH} == "amd64"
+_xpc-tests=	xpc-tests
+.endif
 _tests=		tests
 .endif
 

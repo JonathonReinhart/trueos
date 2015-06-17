@@ -103,7 +103,8 @@
  *	in the machine dependent module.
  */
 #include <machine/mach/vm_types.h>
-#include <machine/mach/thread_state.h>
+
+#define THREAD_STATE_MAX        32
 
 /*
  *	Generic definition for machine-dependent thread status.

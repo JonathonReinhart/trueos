@@ -224,6 +224,8 @@
         ..
         virstor
         ..
+    gen
+    ..
     ..
     gnu
         posix
@@ -250,6 +252,10 @@
     kadm5
     ..
     krb5
+    ..
+    libkern
+        i386
+        ...
     ..
     libmilter
     ..
@@ -311,6 +317,8 @@
     ..
     openssl
     ..
+    os
+    ..
     pcap
     ..
     protocols
@@ -337,15 +345,23 @@
         mac_partition
         ..
     ..
+    servers
+    ..
     ssp
     ..
     sys
+        _pthread
+        ...
+        _types
+        ..
     ..
     ufs
         ffs
         ..
         ufs
         ..
+    ..
+    uuid
     ..
     vm
     ..

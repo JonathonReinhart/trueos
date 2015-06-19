@@ -171,9 +171,7 @@ mach_port_close(struct file *fp, struct thread *td __unused)
 	entry = fp->f_data;
 	if (entry == NULL)
 		return (0);
-#ifdef INVARIANTS
-	printf("closing mach_port: %d\n", entry->ie_name);
-#endif	
+
 	ipc_entry_hash_delete(entry->ie_space, entry);
 	MPASS(entry->ie_link == NULL);
 

@@ -93,7 +93,6 @@ SUBDIR=	alias \
 	m4 \
 	${_makewhatis} \
 	${_man} \
-	${_mach_tests} \
 	mandoc \
 	mesg \
 	migcom \
@@ -357,7 +356,6 @@ SUBDIR+=	telnet
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _xpc_tests=     xpc-tests
-_mach_tests=	mach-tests
 .endif
 
 .if ${MK_TESTS} != "no"

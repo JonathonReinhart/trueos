@@ -6,7 +6,7 @@
 .include <bsd.own.mk>
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= arpa protocols rpcsvc rpc xlocale
+SUBDIR= arpa mach mach_debug protocols rpcsvc rpc xlocale
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
@@ -76,9 +76,10 @@ LSUBDIRS=	cam/ata cam/scsi \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
-	ufs/ffs ufs/ufs
+	ufs/ffs ufs/ufs \
+	sys/mach sys/mach_debug
 
-LSUBSUBDIRS=	dev/mpt/mpilib
+LSUBSUBDIRS=	dev/mpt/mpilib sys/mach/ipc sys/mach/device
 
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
@@ -258,27 +259,6 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if exists(${.CURDIR}/mach)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
-		${DESTDIR}${INCLUDEDIR}/mach
-	cd ${.CURDIR}/mach ; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h *.defs \
-		${DESTDIR}${INCLUDEDIR}/mach
-.endif
-.if exists(${.CURDIR}/mach_debug)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
-		${DESTDIR}${INCLUDEDIR}/mach_debug
-	cd ${.CURDIR}/mach_debug ; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h *.defs \
-		${DESTDIR}${INCLUDEDIR}/mach_debug
-.endif
-.if exists(${.CURDIR}/mach/device)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
-		${DESTDIR}${INCLUDEDIR}/mach/device
-	cd ${.CURDIR}/mach/device ; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}${INCLUDEDIR}/mach/device
-.endif
 .if exists(${.CURDIR}/../sys/sys/mach)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${DESTDIR}${INCLUDEDIR}/sys/mach

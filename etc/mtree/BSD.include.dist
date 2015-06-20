@@ -270,6 +270,12 @@
     lzma
     ..
     mach
+        device
+        ..
+        i386
+        ..
+    ..
+    mach_debug
     ..
     machine
         pc
@@ -358,6 +364,14 @@
     ssp
     ..
     sys
+        mach
+            ipc
+            ..
+            device
+            ..
+        ..
+        mach_debug
+        ..
     ..
     ufs
         ffs

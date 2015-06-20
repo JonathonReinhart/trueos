@@ -1,10 +1,10 @@
 .include <src.opts.mk>
 PROG= ipc-hello
 SRCS= ipc-hello.c
+BINDIR?= /usr/bin
 
 MK_MAN=no
-CFLAGS+= -g
-CFLAGS+= -I. -I../../../../apsl/include 
+CFLAGS= -I${.CURDIR}/../../../include/apple
 LDADD+= -lmach -pthread
 
 .include <bsd.prog.mk>

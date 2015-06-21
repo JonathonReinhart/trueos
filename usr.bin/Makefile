@@ -12,6 +12,7 @@
 SUBDIR=	alias \
 	apply \
 	asa \
+	aslutil \
 	awk \
 	banner \
 	basename \

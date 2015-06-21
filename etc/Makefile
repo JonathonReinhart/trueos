@@ -10,7 +10,8 @@ SUBDIR=	\
 SUBDIR+=sendmail
 .endif
 
-BIN1=	crontab \
+BIN1=	asl.conf \
+	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \

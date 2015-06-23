@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
+#include "opt_pax.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/namei.h>
+#include <sys/pax.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -127,11 +129,6 @@ static int disallow_high_osrel;
 SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
     &disallow_high_osrel, 0,
     "Disallow execution of binaries built for higher version of the world");
-
-static int map_at_zero = 0;
-TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
-SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
-    "Permit processes to map an object at virtual address 0.");
 
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
@@ -398,6 +395,12 @@ do_execve(td, args, mac_p)
 	imgp->attr = &attr;
 	imgp->args = args;
 
+#ifdef PAX
+	error = pax_elf(imgp, 0);
+	if (error)
+		goto exec_fail;
+#endif
+
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
 	if (error)
@@ -452,6 +455,13 @@ interpret:
 		imgp->vp = binvp;
 	}
 
+#ifdef PAX_SEGVGUARD
+	/*
+	 * XXXOP: check return value
+	 */
+	(void)pax_segvguard_update_flags_if_setuid(imgp, imgp->vp);
+#endif
+
 	/*
 	 * Check file permissions (also 'opens' file)
 	 */
@@ -499,6 +509,11 @@ interpret:
 		}
 		error = (*execsw[i]->ex_imgact)(imgp);
 	}
+
+#ifdef PAX_SEGVGUARD
+	if (!error)
+		error = pax_segvguard_check(td, imgp->vp, args->fname);
+#endif
 
 	if (error) {
 		if (error == -1) {
@@ -1045,10 +1060,7 @@ exec_new_vmspace(imgp, sv)
 	 * not disrupted
 	 */
 	map = &vmspace->vm_map;
-	if (map_at_zero)
-		sv_minuser = sv->sv_minuser;
-	else
-		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
+	sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
 	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser) {
 		shmexit(vmspace);
@@ -1061,6 +1073,10 @@ exec_new_vmspace(imgp, sv)
 		vmspace = p->p_vmspace;
 		map = &vmspace->vm_map;
 	}
+
+#ifdef PAX_ASLR
+	pax_aslr_init(imgp);
+#endif
 
 	/* Map a shared page */
 	obj = sv->sv_shared_page_obj;
@@ -1094,6 +1110,14 @@ exec_new_vmspace(imgp, sv)
 	} else {
 		ssiz = maxssiz;
 	}
+#ifdef PAX_ASLR
+	/*
+	 * The current stack randomization based on gap.
+	 * To fix the mapping, we should increase the allocatable
+	 * stack size with the gap size.
+	 */
+	pax_aslr_stack_adjust(p, &ssiz);
+#endif
 	stack_addr = sv->sv_usrstack - ssiz;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
 	    obj != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
@@ -1284,6 +1308,9 @@ exec_copyout_strings(imgp)
 			szsigcode = *(p->p_sysent->sv_szsigcode);
 	}
 	destp =	(uintptr_t)arginfo;
+#ifdef PAX_ASLR
+	pax_aslr_stack(p, &destp);
+#endif
 
 	/*
 	 * install sigcode

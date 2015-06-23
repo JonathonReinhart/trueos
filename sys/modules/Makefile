@@ -35,7 +35,6 @@ SUBDIR=	\
 	${_amdtemp} \
 	amr \
 	${_an} \
-	${_aout} \
 	${_apm} \
 	${_arcmsr} \
 	${_arcnet} \
@@ -71,7 +70,6 @@ SUBDIR=	\
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
-	${_coff} \
 	${_coretemp} \
 	${_cp} \
 	${_cpsw} \
@@ -131,7 +129,6 @@ SUBDIR=	\
 	${_hyperv} \
 	${_i2c} \
         ${_ibcore} \
-	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
 	${_ie} \
@@ -150,6 +147,7 @@ SUBDIR=	\
 	if_tap \
 	if_tun \
 	if_vlan \
+	if_vxlan \
 	${_igb} \
 	${_iir} \
 	${_imgact_binmisc} \
@@ -326,8 +324,6 @@ SUBDIR=	\
 	ste \
 	${_stg} \
 	stge \
-	${_streams} \
-	${_svr4} \
 	${_sym} \
 	${_syscons} \
 	sysvipc \
@@ -488,7 +484,6 @@ _3dfx_linux=	3dfx_linux
 _agp=		agp
 _aic=		aic
 _an=		an
-_aout=		aout
 _apm=		apm
 _arcnet=	arcnet
 _bktr=		bktr
@@ -498,7 +493,6 @@ _cbb=		cbb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce
 .endif
-_coff=		coff
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
@@ -525,7 +519,6 @@ _i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
-_ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb

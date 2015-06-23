@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_pax.h"
 
 #define __ELF_WORD_SIZE 32
 
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/pax.h>
 #include <sys/proc.h>
 #include <sys/procctl.h>
 #include <sys/reboot.h>
@@ -490,10 +492,6 @@ freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 	ap.addr = PTRIN(uap->addr);
 	ap.len = uap->len;
 	ap.prot = uap->prot;
-#if defined(__amd64__) || defined(__ia64__)
-	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
-		ap.prot |= PROT_EXEC;
-#endif
 	return (sys_mprotect(td, &ap));
 }
 
@@ -578,11 +576,6 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 		addr = start;
 		len = end - start;
 	}
-#endif
-
-#if defined(__amd64__) || defined(__ia64__)
-	if (i386_read_exec && (prot & PROT_READ))
-		prot |= PROT_EXEC;
 #endif
 
 	ap.addr = (void *) addr;
@@ -2874,6 +2867,10 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	else
 		szsigcode = 0;
 	destp =	(uintptr_t)arginfo;
+
+#ifdef PAX_ASLR
+	pax_aslr_stack(imgp->proc, &destp);
+#endif
 
 	/*
 	 * install sigcode

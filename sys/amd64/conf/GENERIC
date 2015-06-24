@@ -1,5 +1,3 @@
-include MACHTEST
-
 ident HARDENEDBSD-10-STABLE
 
 options INVARIANTS
@@ -39,7 +37,6 @@ device aesni
 # $FreeBSD$
 
 cpu		HAMMER
-ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support

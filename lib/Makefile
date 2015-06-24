@@ -91,6 +91,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	libsbuf \
 	${_libsdp} \
+	libsecadm \
 	${_libsm} \
 	${_libsmb} \
 	${_libsmdb} \
@@ -148,6 +149,7 @@ SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
 SUBDIR_DEPEND_libsmb= libkiconv
+SUBDIR_DEPEND_libsecadm= libucl
 SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd

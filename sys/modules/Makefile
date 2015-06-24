@@ -304,6 +304,7 @@ SUBDIR=	\
 	sdhci \
 	sdhci_pci \
 	sem \
+	secadm \
 	send \
 	${_sf} \
 	${_sfxge} \

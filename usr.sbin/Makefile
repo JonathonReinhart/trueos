@@ -73,6 +73,7 @@ SUBDIR=	adduser \
 	rpc.statd \
 	rpc.umntall \
 	rtprio \
+	secadm \
 	service \
 	services_mkdb \
 	setfib \

@@ -345,6 +345,8 @@ xpc_send(xpc_connection_t xconn, xpc_object_t message, uint64_t id)
 	struct xpc_connection *conn;
 	kern_return_t kr;
 
+	debugf("connection=%p, message=%p, id=%d", xconn, message, id);
+
 	conn = xconn;
 	kr = xpc_pipe_send(message, conn->xc_remote_port,
 	    conn->xc_local_port, id);
@@ -361,7 +363,10 @@ xpc_connection_set_credentials(struct xpc_connection *conn, audit_token_t *tok)
 	pid_t pid;
 	au_asid_t asid;
 
-	audit_token_to_au32(tok, NULL, &uid, &gid, NULL, NULL, &pid, &asid,
+	if (tok == NULL)
+		return;
+
+	audit_token_to_au32(*tok, NULL, &uid, &gid, NULL, NULL, &pid, &asid,
 	    NULL);
 
 	conn->xc_remote_euid = uid;
@@ -425,7 +430,7 @@ xpc_connection_recv_message(void *context)
 		TAILQ_FOREACH(call, &conn->xc_pending, xp_link) {
 			if (call->xp_id == id) {
 				dispatch_async(conn->xc_target_queue, ^{
-					conn->xc_handler(result);
+					call->xp_handler(result);
 					TAILQ_REMOVE(&conn->xc_pending, call,
 					    xp_link);
 					free(call);

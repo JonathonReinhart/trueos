@@ -1,7 +1,6 @@
 .include <src.opts.mk>
 
-SUBDIR= echo-client \
-	echo-server \
-	credentials
+SUBDIR=	client \
+	server
 
 .include <bsd.subdir.mk>

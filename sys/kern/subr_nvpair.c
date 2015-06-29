@@ -208,7 +208,7 @@ nvpair_clone(const nvpair_t *nvp)
 	case NV_TYPE_NVLIST:
 	case NV_TYPE_NVLIST_ARRAY:
 	case NV_TYPE_NVLIST_DICTIONARY:
-		newnvp = nvpair_create_nvlist(name, nvpair_get_nvlist(nvp));
+		newnvp = nvpair_create_nvlist_type(name, nvpair_get_nvlist(nvp), nvpair_type(nvp));
 		break;
 #ifndef _KERNEL
 	case NV_TYPE_DESCRIPTOR:
@@ -308,7 +308,14 @@ nvpair_pack_number(const nvpair_t *nvp, unsigned char *ptr, size_t *leftp)
 	uint64_t value;
 
 	NVPAIR_ASSERT(nvp);
-	PJDLOG_ASSERT(nvp->nvp_type == NV_TYPE_NUMBER);
+	PJDLOG_ASSERT(
+	    nvp->nvp_type == NV_TYPE_NUMBER ||
+	    nvp->nvp_type == NV_TYPE_PTR ||
+	    nvp->nvp_type == NV_TYPE_UINT64 ||
+	    nvp->nvp_type == NV_TYPE_INT64 ||
+	    nvp->nvp_type == NV_TYPE_ENDPOINT ||
+	    nvp->nvp_type == NV_TYPE_DATE
+	);
 
 	value = (uint64_t)nvp->nvp_data;
 
@@ -537,7 +544,14 @@ nvpair_unpack_number(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
      size_t *leftp)
 {
 
-	PJDLOG_ASSERT(nvp->nvp_type == NV_TYPE_NUMBER);
+	PJDLOG_ASSERT(
+	    nvp->nvp_type == NV_TYPE_NUMBER ||
+	    nvp->nvp_type == NV_TYPE_PTR ||
+	    nvp->nvp_type == NV_TYPE_UINT64 ||
+	    nvp->nvp_type == NV_TYPE_INT64 ||
+	    nvp->nvp_type == NV_TYPE_ENDPOINT ||
+	    nvp->nvp_type == NV_TYPE_DATE
+	);
 
 	if (nvp->nvp_datasize != sizeof(uint64_t)) {
 		RESTORE_ERRNO(EINVAL);
@@ -593,15 +607,25 @@ nvpair_unpack_nvlist(bool isbe __unused, nvpair_t *nvp,
 	nvlist_t *value;
 
 	PJDLOG_ASSERT(nvp->nvp_type == NV_TYPE_NVLIST ||
-				  nvp->nvp_type == NV_TYPE_NVLIST_ARRAY ||
-				  nvp->nvp_type == NV_TYPE_NVLIST_DICTIONARY);
+	    nvp->nvp_type == NV_TYPE_NVLIST_ARRAY ||
+	    nvp->nvp_type == NV_TYPE_NVLIST_DICTIONARY);
 
 	if (*leftp < nvp->nvp_datasize || nvp->nvp_datasize == 0) {
 		RESTORE_ERRNO(EINVAL);
 		return (NULL);
 	}
 
-	value = nvlist_create(0);
+	switch (nvp->nvp_type) {
+	case NV_TYPE_NVLIST:
+		value = nvlist_create(0);
+		break;
+	case NV_TYPE_NVLIST_ARRAY:
+		value = nvlist_create_array(0);
+		break;
+	case NV_TYPE_NVLIST_DICTIONARY:
+		value = nvlist_create_dictionary(0);
+	}
+
 	if (value == NULL)
 		return (NULL);
 
@@ -821,13 +845,6 @@ nvpair_create_stringv(const char *name, const char *valuefmt, va_list valueap)
 	if (nvp == NULL)
 		nv_free(str);
 	return (nvp);
-}
-
-nvpair_t *
-nvpair_create_nvlist(const char *name, const nvlist_t *value)
-{
-
-	return (nvpair_create_nvlist_type(name, value, NV_TYPE_NVLIST));
 }
 
 nvpair_t *
@@ -1366,8 +1383,8 @@ nvpair_get_nvlist(const nvpair_t *nvp)
 
 	NVPAIR_ASSERT(nvp);
 	PJDLOG_ASSERT(nvp->nvp_type == NV_TYPE_NVLIST_ARRAY ||
-				  nvp->nvp_type == NV_TYPE_NVLIST_DICTIONARY ||
-				  nvp->nvp_type == NV_TYPE_NVLIST);
+	    nvp->nvp_type == NV_TYPE_NVLIST_DICTIONARY ||
+	    nvp->nvp_type == NV_TYPE_NVLIST);
 
 	return ((const nvlist_t *)(intptr_t)nvp->nvp_data);
 }

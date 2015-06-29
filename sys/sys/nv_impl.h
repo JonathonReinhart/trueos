@@ -117,7 +117,6 @@ nvpair_t *nvpair_create_number_type(const char *name, uint64_t value, int type);
 nvpair_t *nvpair_create_string(const char *name, const char *value);
 nvpair_t *nvpair_create_stringf(const char *name, const char *valuefmt, ...) __printflike(2, 3);
 nvpair_t *nvpair_create_stringv(const char *name, const char *valuefmt, va_list valueap) __printflike(2, 0);
-nvpair_t *nvpair_create_nvlist(const char *name, const nvlist_t *value);
 nvpair_t *nvpair_create_nvlist_type(const char *name, const nvlist_t *value, int type);
 nvpair_t *nvpair_create_descriptor(const char *name, int value);
 nvpair_t *nvpair_create_binary(const char *name, const void *value, size_t size);
@@ -151,7 +150,6 @@ nvpair_t *nvpair_createf_uuid(const uuid_t *value, const char *namefmt, ...) __p
 
 nvpair_t *nvpair_createv_null(const char *namefmt, va_list nameap) __printflike(1, 0);
 nvpair_t *nvpair_createv_bool(bool value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_number(uint64_t value, const char *namefmt, va_list nameap) __printflike(2, 0);
 nvpair_t *nvpair_createv_number_type(uint64_t value, int type, const char *namefmt, va_list nameap) __printflike(3, 0);
 nvpair_t *nvpair_createv_string(const char *value, const char *namefmt, va_list nameap) __printflike(2, 0);
 nvpair_t *nvpair_createv_nvlist_type(const nvlist_t *value, int type, const char *namefmt, va_list nameap) __printflike(3, 0);

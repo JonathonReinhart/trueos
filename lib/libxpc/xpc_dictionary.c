@@ -81,12 +81,12 @@ nv2xpc(const nvlist_t *nv)
 			break;
 
 		case NV_TYPE_INT64:
-			val.i = (int64_t)nvlist_get_number(nv, key);
+			val.i = nvlist_get_int64(nv, key);
 			xotmp = xpc_int64_create(val.i);
 			break;
 
 		case NV_TYPE_UINT64:
-			val.ui = nvlist_get_number(nv, key);
+			val.ui = nvlist_get_uint64(nv, key);
 			xotmp = xpc_uint64_create(val.ui);
 			break;
 
@@ -107,8 +107,12 @@ nv2xpc(const nvlist_t *nv)
 			xotmp = _xpc_prim_create(_XPC_TYPE_UUID, val, 0);
 
 		case NV_TYPE_NVLIST_ARRAY:
+			nvtmp = nvlist_get_nvlist_array(nv, key);
+			xotmp = nv2xpc(nvtmp);
+			break;
+
 		case NV_TYPE_NVLIST_DICTIONARY:
-			nvtmp = nvlist_get_nvlist(nv, key);
+			nvtmp = nvlist_get_nvlist_dictionary(nv, key);
 			xotmp = nv2xpc(nvtmp);
 			break;
 		}
@@ -132,13 +136,11 @@ xpc2nv_primitive(nvlist_t *nv, const char *key, xpc_object_t value)
 
 	switch (xotmp->xo_xpc_type) {
 	case _XPC_TYPE_DICTIONARY:
-		nvlist_add_nvlist_type(nv, key, xpc2nv(xotmp),
-		    NV_TYPE_NVLIST_DICTIONARY);
+		nvlist_add_nvlist_dictionary(nv, key, xpc2nv(xotmp));
 		break;
 
 	case _XPC_TYPE_ARRAY:
-		nvlist_add_nvlist_type(nv, key, xpc2nv(xotmp),
-		    NV_TYPE_NVLIST_ARRAY);
+		nvlist_add_nvlist_array(nv, key, xpc2nv(xotmp));
 		break;
 
 	case _XPC_TYPE_BOOL:
@@ -152,13 +154,11 @@ xpc2nv_primitive(nvlist_t *nv, const char *key, xpc_object_t value)
 		break;
 
 	case _XPC_TYPE_INT64:
-		nvlist_add_number_type(nv, key,
-		    xpc_int64_get_value(xotmp), NV_TYPE_INT64);
+		nvlist_add_int64(nv, key, xpc_int64_get_value(xotmp));
 		break;
 
 	case _XPC_TYPE_UINT64:
-		nvlist_add_number_type(nv, key,
-		    xpc_uint64_get_value(xotmp), NV_TYPE_UINT64);
+		nvlist_add_uint64(nv, key,  xpc_uint64_get_value(xotmp));
 		break;
 
 	case _XPC_TYPE_DATE:
@@ -197,11 +197,12 @@ xpc2nv_primitive(nvlist_t *nv, const char *key, xpc_object_t value)
 nvlist_t *
 xpc2nv(struct xpc_object *xo)
 {
-	struct nvlist *nv;
+	nvlist_t *nv;
 	struct xpc_object *xotmp;
 
 	if (xo->xo_xpc_type == _XPC_TYPE_DICTIONARY) {
-		nv = nvlist_create_type(0, NV_TYPE_NVLIST_DICTIONARY);
+		nv = nvlist_create_dictionary(0);
+		printf("nv = %p\n", nv);
 		xpc_dictionary_apply(xo, ^(const char *k, xpc_object_t v) {
 			xpc2nv_primitive(nv, k, v);
 			return ((bool)true);
@@ -210,7 +211,7 @@ xpc2nv(struct xpc_object *xo)
 
 	if (xo->xo_xpc_type == _XPC_TYPE_ARRAY) {
 		char *key;
-		nv = nvlist_create_type(0, NV_TYPE_NVLIST_ARRAY);
+		nv = nvlist_create_array(0);
 		xpc_array_apply(xo, ^(size_t index, xpc_object_t v) {
 			asprintf(&key, "%ld", index);
 			xpc2nv_primitive(nv, key, v);

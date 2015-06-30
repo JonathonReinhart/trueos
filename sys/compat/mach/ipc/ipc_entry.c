@@ -85,7 +85,12 @@
  *	Primitive functions to manipulate translation entries.
  */
 
+
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "opt_capsicum.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
@@ -120,6 +125,7 @@ static void fdunused(struct filedesc *fdp, int fd);
 static int kern_fdalloc(struct thread *td, int minfd, int *result);
 static void kern_fddealloc(struct thread *td, int fd);
 static inline void kern_fdfree(struct filedesc *fdp, int fd);
+static inline void kern_fdfree_last(struct filedesc *fdp, int fd);
 static int kern_finstall(struct thread *td, struct file *fp, int *fd, int flags,
 			 struct filecaps *fcaps);
 
@@ -184,6 +190,8 @@ mach_port_close(struct file *fp, struct thread *td)
 {
 	ipc_entry_t entry;
 	ipc_object_t object;
+	ipc_pset_t pset;
+	ipc_port_t port;
 
 	MACH_VERIFY(fp->f_data != NULL, ("expected fp->f_data != NULL - got NULL\n"));
 	if ((entry = fp->f_data) == NULL)
@@ -196,10 +204,19 @@ mach_port_close(struct file *fp, struct thread *td)
 	PROC_UNLOCK(td->td_proc);
 	if ((object = entry->ie_object) != NULL) {
 		if (entry->ie_bits & MACH_PORT_TYPE_PORT_SET) {
-			ips_lock((ipc_pset_t)object);
-			ipc_pset_destroy((ipc_pset_t) object);
+			pset = (ipc_pset_t)object;
+			printf("destroying pset %p for fp: %p\n", pset, fp);
+			ips_lock(pset);
+			ipc_pset_destroy(pset);
 		} else {
-			ipc_object_release(object);
+			port = (ipc_port_t)object;
+			if (port->ip_receiver == current_space()) {
+				ip_lock(port);
+				ipc_port_clear_receiver(port);
+				ipc_port_destroy(port);
+			} else {
+				ip_release(port);
+			}
 		}
 		entry->ie_object = NULL;
 	}
@@ -255,10 +272,15 @@ mach_port_fill_kinfo(struct file *fp, struct kinfo_file *kif,
  *		The space must be locked.
  */
 
+extern void kdb_backtrace(void);
 void
 ipc_entry_release(ipc_entry_t entry)
 {
-
+	if ((entry->ie_fp->f_count == 1) &&
+		(entry->ie_bits & MACH_PORT_TYPE_PORT_SET)) {
+		printf("dropping last ref to pset\n");
+		kdb_backtrace();
+	}
 	fdrop(entry->ie_fp, curthread);
 }
 
@@ -606,12 +628,28 @@ ipc_entry_dealloc(
 }
 
 static void
+kern_last_close(struct thread *td, struct file *fp, struct filedesc *fdp, int fd)
+{
+
+	FILEDESC_XLOCK(fdp);
+	knote_fdclose(td, fd);
+	kern_fdfree_last(fdp, fd);
+	FILEDESC_XUNLOCK(fdp);
+	fdrop(fp, td);
+}
+
+static void
 ipc_entry_list_close(void *arg __unused, struct proc *p)
 {
 	struct filedesc *fdp;
 	struct filedescent *fde;
 	struct file *fp;
 	struct thread *td;
+#if 0
+	ipc_port_t port;
+	ipc_pset_t pset;
+	ipc_entry_t entry_tmp;
+#endif
 	ipc_entry_t entry;
 	ipc_space_t space;
 	int i;
@@ -619,44 +657,64 @@ ipc_entry_list_close(void *arg __unused, struct proc *p)
 	fdp = p->p_fd;
 	td = curthread;
 	space = current_space();
+
+#if 0
+	/* remove all ports from attached portsets */
+	LIST_FOREACH_SAFE(entry, &space->is_entry_list, ie_space_link, entry_tmp) {
+		if ((entry->ie_bits & MACH_PORT_TYPE_PORT_SET) == 0)
+			continue;
+		if (entry->ie_object == NULL)
+			continue;
+		pset = (ipc_pset_t)entry->ie_object;
+		ips_lock(pset);
+		while (!TAILQ_EMPTY(&pset->ips_ports)) {
+			port = TAILQ_FIRST(&pset->ips_ports);
+			MPASS(port->ip_pset == pset);
+			if (ip_lock_try(port) == 0) {
+				ips_unlock(pset);
+				ip_lock(port);
+				ips_lock(pset);
+			}
+			TAILQ_REMOVE(&pset->ips_ports, port, ip_next);
+			port->ip_pset = NULL;
+			ip_unlock(port);
+			ips_release(pset);
+		}
+		ips_unlock(pset);
+	}
+#endif
 	/* do we want to just return if the refcount is > 1 or should we
 	 * bar this from happening in the first place?
 	 **/
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
-	/* clear ports first as they reference the portset */
-	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		fde = &fdp->fd_ofiles[i];
-		fp = fde->fde_file;
-		if (fp != NULL && (fp->f_type == DTYPE_MACH_IPC)) {
-			if (fp->f_data == NULL) {
-				log(LOG_WARNING, "%s:%d fd: %d has NULL f_data\n", p->p_comm, p->p_pid, i);
-				kern_close(td, i);
-				continue;
-			}
 
-			entry = fp->f_data;
-			if (entry->ie_bits & MACH_PORT_TYPE_PORT_SET)
-				continue;
-			if (fp->f_count > 1)
-				log(LOG_WARNING, "%s:%d fd: %d port refcount: %d\n", p->p_comm, p->p_pid, i, fp->f_count);
-			kern_close(td, i);
-		}
-	}
-	/* clear portsets */
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
+		int ispset; 
+
 		fde = &fdp->fd_ofiles[i];
 		fp = fde->fde_file;
-		if (fp != NULL && (fp->f_type == DTYPE_MACH_IPC)) {
-			MPASS(fp->f_data != NULL);
-			if (fp->f_count > 1)
-				log(LOG_WARNING, "%s:%d fd: %d portset refcount: %d\n", p->p_comm, p->p_pid, i, fp->f_count);
-#if 0
-			/* remove from kq */
-			knote_fdclose(td, i);
-#endif
-			kern_close(td, i);
+		if (fp == NULL || (fp->f_type != DTYPE_MACH_IPC))
+			continue;
+		MPASS(fp->f_count > 0);
+
+		if (fp->f_data == NULL) {
+			log(LOG_WARNING, "%s:%d fd: %d has NULL f_data\n", p->p_comm, p->p_pid, i);
+			kern_last_close(td, fp, fdp, i);
+			continue;
 		}
+
+		entry = fp->f_data;
+		MPASS(entry->ie_bits != 0xdeadc0de);
+		if (fp->f_count > 1) {
+			ispset = (entry->ie_bits & MACH_PORT_TYPE_PORT_SET);
+			log(LOG_WARNING, "%s:%d fd: %d %s refcount: %d\n", p->p_comm, p->p_pid, i,
+				ispset ? "pset" : "port", fp->f_count);
+			/* make sure ports all detach from portset first */
+			fp->f_count = 1;
+		}
+		kern_last_close(td, fp, fdp, i);
 	}
+
 #ifdef INVARIANTS
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
@@ -677,6 +735,7 @@ ipc_entry_list_close(void *arg __unused, struct proc *p)
 		MPASS(i++ < 10000);
 	}
 }
+
 
 static void
 ipc_entry_sysinit(void *arg __unused)
@@ -775,19 +834,34 @@ kern_fddealloc(struct thread *td, int fd)
 	FILEDESC_XUNLOCK(fdp);
 }
 
-/*
- * Free a file descriptor.
- *
- * Avoid some work if fdp is about to be destroyed.
- */
 static inline void
-kern_fdfree(struct filedesc *fdp, int fd)
+_fdfree(struct filedesc *fdp, int fd, int last)
 {
 	struct filedescent *fde;
 
 	fde = &fdp->fd_ofiles[fd];
+#ifdef CAPABILITIES
+	if (!last)
+		seq_write_begin(&fde->fde_seq);
+#endif
 	bzero(fde, fde_change_size);
 	fdunused(fdp, fd);
+#ifdef CAPABILITIES
+	seq_write_end(&fde->fde_seq);
+#endif
+}
+
+
+static inline void
+kern_fdfree(struct filedesc *fdp, int fd)
+{
+	_fdfree(fdp, fd, 0);
+}
+
+static inline void
+kern_fdfree_last(struct filedesc *fdp, int fd)
+{
+	_fdfree(fdp, fd, 1);
 }
 
 /*

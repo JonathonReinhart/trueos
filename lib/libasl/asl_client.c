@@ -53,6 +53,7 @@ __private_extern__ ASL_STATUS asl_file_open_write_fd(int descriptor, asl_file_t 
 
 /* private asl SPI */
 __private_extern__ ASL_STATUS asl_client_internal_send(asl_object_t client, asl_object_t msg);
+__private_extern__ char *get_argv0();
 
 #pragma mark -
 #pragma mark asl_client_t
@@ -115,7 +116,7 @@ asl_client_open(const char *ident, const char *facility, uint32_t opts)
 	}
 	else
 	{
-		char *name = "unknown"; // XXX *(*_NSGetArgv());
+		char *name = get_argv0();
 		if (name != NULL)
 		{
 			char *x = strrchr(name, '/');

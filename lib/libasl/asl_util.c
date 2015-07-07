@@ -24,12 +24,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/user.h>
 #include <sys/un.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <libutil.h>
 #include <Block.h>
 #include <dispatch/dispatch.h>
 #include <os/base.h>
@@ -310,6 +312,20 @@ asl_syslog_faciliy_num_to_name(int n)
 	if (n == LOG_LAUNCHD) return "launchd";
 
 	return NULL;
+}
+
+__private_extern__ char *
+get_argv0()
+{
+	struct kinfo_proc *proc = kinfo_getproc(getpid());
+	char *argv0;
+	
+	if (proc == NULL)
+		return (NULL);
+
+	argv0 = strdup(proc->ki_comm);
+	free(proc);
+	return (argv0);
 }
 
 #if 0

@@ -1134,6 +1134,15 @@ job_export(job_t j)
 		launch_data_dict_insert(r, tmp, LAUNCH_JOBKEY_PROGRAMARGUMENTS);
 	}
 
+	if (!SLIST_EMPTY(&j->env) && (tmp = launch_data_alloc(LAUNCH_DATA_DICTIONARY))) {
+		struct envitem *ei = NULL;
+		SLIST_FOREACH(ei, &j->env, sle) {
+			launch_data_dict_insert(tmp, launch_data_new_string(ei->value), ei->key);
+		}
+
+		launch_data_dict_insert(r, tmp, LAUNCH_JOBKEY_ENVIRONMENTVARIABLES);
+	}
+
 	if (j->enable_transactions && (tmp = launch_data_new_bool(true))) {
 		launch_data_dict_insert(r, tmp, LAUNCH_JOBKEY_ENABLETRANSACTIONS);
 	}
@@ -6494,7 +6503,7 @@ machservice_status(struct machservice *ms)
 	}
 }
 
-#include <machine/mach/thread_status.h>
+#include <sys/mach/thread_status.h>
 void
 job_setup_exception_port(job_t j, task_t target_task)
 {
@@ -12112,9 +12121,6 @@ _log_launchd_bug(const char *rcs_rev, const char *path, unsigned int line, const
 pid_t
 launchd_fork(void)
 {
-	pid_t pid;
-	syslog(LOG_ERR, "call runtime_fork()");
-	pid = runtime_fork(root_jobmgr->jm_port);
-	syslog(LOG_ERR, "runtime_fork() returned %d", pid);
-	return (pid);
+
+	return (runtime_fork(root_jobmgr->jm_port));
 }

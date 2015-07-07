@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
@@ -125,7 +126,6 @@ static void fdunused(struct filedesc *fdp, int fd);
 static int kern_fdalloc(struct thread *td, int minfd, int *result);
 static void kern_fddealloc(struct thread *td, int fd);
 static inline void kern_fdfree(struct filedesc *fdp, int fd);
-static inline void kern_fdfree_last(struct filedesc *fdp, int fd);
 static int kern_finstall(struct thread *td, struct file *fp, int *fd, int flags,
 			 struct filecaps *fcaps);
 
@@ -286,6 +286,7 @@ ipc_entry_release(ipc_entry_t entry)
  *		The space must be active.
  */
 
+extern void kdb_backtrace(void);
 ipc_entry_t
 ipc_entry_lookup(ipc_space_t space, mach_port_name_t name)
 {
@@ -302,6 +303,7 @@ ipc_entry_lookup(ipc_space_t space, mach_port_name_t name)
 		return (NULL);
 	}
 	if (fp->f_type != DTYPE_MACH_IPC) {
+		kdb_backtrace();
 		log(LOG_DEBUG, "%s:%d port name: %d is not MACH\n", curproc->p_comm, curproc->p_pid, name);
 		fdrop(fp, curthread);
 		return (NULL);
@@ -313,10 +315,9 @@ ipc_entry_lookup(ipc_space_t space, mach_port_name_t name)
 
 
 kern_return_t
-ipc_entry_copyin(ipc_space_t space, mach_port_name_t name, void **fpp, mach_msg_type_name_t disp, ipc_object_t *objectp)
+ipc_entry_copyin_file(ipc_space_t space, mach_port_name_t name, void **fpp)
 {
 	struct file *fp;
-	kern_return_t kr;
 
 	if (fget(curthread, name, NULL, &fp) != 0) {
 		log(LOG_DEBUG, "entry for port name: %d not found\n", name);
@@ -324,44 +325,31 @@ ipc_entry_copyin(ipc_space_t space, mach_port_name_t name, void **fpp, mach_msg_
 	}
 	*fpp = fp;
 	if (fp->f_type == DTYPE_MACH_IPC) {
-		if ((kr = ipc_object_copyin(space, name, disp, objectp)) != KERN_SUCCESS) {
-			fdrop(fp, curthread);
-			return (kr);
-		}
+		fdrop(fp, curthread);
+		return (KERN_INVALID_ARGUMENT);
 	}
 	return (KERN_SUCCESS);
 }
 
 kern_return_t
-ipc_entry_copyout(ipc_space_t space, void *handle, mach_msg_type_name_t msgt_name, mach_port_name_t *namep)
+ipc_entry_copyout_file(ipc_space_t space, void *handle, mach_port_name_t *namep)
 {
 	struct file *fp = handle;
-	ipc_entry_t entry;
-	ipc_object_t object;
-	kern_return_t kr;
 
 	MPASS(handle != NULL);
 
-	if (fp->f_type == DTYPE_MACH_IPC) {
-		entry = fp->f_data;
-		MPASS(entry != NULL);
-		object = entry->ie_object;
-		MPASS(object != NULL);
-		kr = ipc_object_copyout(space, object, msgt_name, namep);
-		/* XXX this shouldn't be curthread it should be the originating thread - which we need
-		 * to be able get to through ipc_space
-		 * KMM
-		 */
+	if (fp->f_type == DTYPE_MACH_IPC)
+		return KERN_INVALID_ARGUMENT;
+	/* maintain the reference added at ipc_entry_copyin */
+
+	/* Are sent file O_CLOEXEC? */
+	if (kern_finstall(curthread, fp, namep, 0, NULL) != 0) {
 		fdrop(fp, curthread);
-	} else {
-		/* maintain the reference added at ipc_entry_copyin */
-		/* Are sent file O_CLOEXEC? */
-		if ((kr = kern_finstall(curthread, fp, namep, 0, NULL)) != 0) {
-			fdrop(fp, curthread);
-			kr = KERN_RESOURCE_SHORTAGE;
-		}
+		printf("finstall failed\n");
+		return (KERN_RESOURCE_SHORTAGE);
 	}
-	return (kr);
+	printf(" installing received file *fp=%p at %d\n", fp, *namep);
+	return (KERN_SUCCESS);
 }
 
 ipc_object_t
@@ -614,10 +602,18 @@ ipc_entry_dealloc(
 	assert(entry->ie_object == IO_NULL);
 	assert(entry->ie_request == 0);
 
+	if (space != entry->ie_space) {
+		is_write_unlock(space);
+		is_write_lock(entry->ie_space);
+	}
 	ipc_entry_hash_delete(space, entry);
+	if (space != entry->ie_space) {
+		is_write_unlock(entry->ie_space);
+	} else {
+		is_write_unlock(space);
+	}
 	MPASS(entry->ie_link == NULL);
 
-	is_write_unlock(space);
 	ipc_entry_close(space, name);
 }
 
@@ -627,7 +623,7 @@ kern_last_close(struct thread *td, struct file *fp, struct filedesc *fdp, int fd
 
 	FILEDESC_XLOCK(fdp);
 	knote_fdclose(td, fd);
-	kern_fdfree_last(fdp, fd);
+	kern_fdfree(fdp, fd);
 	FILEDESC_XUNLOCK(fdp);
 	fdrop(fp, td);
 }
@@ -709,6 +705,8 @@ ipc_entry_list_close(void *arg __unused, struct proc *p)
 		entry = LIST_FIRST(&space->is_entry_list);
 		/* mach_port_close removes the entry */
 		fp = entry->ie_fp;
+		MPASS(fp->f_count > 0);
+		fp->f_count = 1;
 		fdrop(fp, td);
 		/* ensure no infinite loop */
 		MPASS(i++ < 10000);
@@ -814,14 +812,13 @@ kern_fddealloc(struct thread *td, int fd)
 }
 
 static inline void
-_fdfree(struct filedesc *fdp, int fd, int last)
+kern_fdfree(struct filedesc *fdp, int fd)
 {
 	struct filedescent *fde;
 
 	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
-	if (!last)
-		seq_write_begin(&fde->fde_seq);
+	seq_write_begin(&fde->fde_seq);
 #endif
 	bzero(fde, fde_change_size);
 	fdunused(fdp, fd);
@@ -830,17 +827,14 @@ _fdfree(struct filedesc *fdp, int fd, int last)
 #endif
 }
 
-
-static inline void
-kern_fdfree(struct filedesc *fdp, int fd)
+static void
+filecaps_fill(struct filecaps *fcaps)
 {
-	_fdfree(fdp, fd, 0);
-}
 
-static inline void
-kern_fdfree_last(struct filedesc *fdp, int fd)
-{
-	_fdfree(fdp, fd, 1);
+	CAP_ALL(&fcaps->fc_rights);
+	fcaps->fc_ioctls = NULL;
+	fcaps->fc_nioctls = -1;
+	fcaps->fc_fcntls = CAP_FCNTL_ALL;
 }
 
 /*
@@ -874,6 +868,7 @@ kern_finstall(struct thread *td, struct file *fp, int *fd, int flags,
 	fde->fde_file = fp;
 	if ((flags & O_CLOEXEC) != 0)
 		fde->fde_flags |= UF_EXCLOSE;
+	filecaps_fill(&fde->fde_caps);
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
 #endif

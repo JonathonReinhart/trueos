@@ -412,7 +412,7 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
 		LIBPRIVATEDIR=/usr/lib32/private \
-		MACHINE_INCLUDES="${WORLDTMP}/include" \
+		MACHINE_INCLUDES="${LIB32TMP}/include" \
 		COMPILER_TYPE=${WMAKE_COMPILER_TYPE} \
 		DTRACE="${DTRACE} -32"
 LIB32WMAKEFLAGS+=	\
@@ -602,6 +602,7 @@ build32:
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${LIB32TMP}/usr/include
+	ln -sf ${.CURDIR}/sys/${MACHINE_ARCH}/include ${LIB32TMP}/usr/include/machine
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \

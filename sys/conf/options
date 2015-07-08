@@ -925,6 +925,7 @@ IPOIB_CM	opt_ofed.h
 
 # Resource Accounting
 RACCT		opt_global.h
+RACCT_DEFAULT_TO_DISABLED	opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
@@ -939,3 +940,5 @@ RANDOM_RWFILE	opt_random.h
 COMPAT_MACH_STATIC
 COMPAT_MACH_PORT_DEBUG opt_compat_mach.h
 
+# Intel em(4) driver
+EM_MULTIQUEUE	opt_em.h

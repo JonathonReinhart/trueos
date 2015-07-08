@@ -324,7 +324,6 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 			case offsetof(struct prison, pr_hostuuid):
 				snprintf(buf, sizeof(buf), "hostuuid=%s", tmpname);
 				break;
-				
 			default:
 				return (EINVAL);		
 		}

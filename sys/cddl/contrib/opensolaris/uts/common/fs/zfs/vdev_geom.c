@@ -149,8 +149,6 @@ vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
 }
 
 static void
-=======
->>>>>>> origin/freebsd10
 vdev_geom_orphan(struct g_consumer *cp)
 {
 	vdev_t *vd;
@@ -177,64 +175,6 @@ vdev_geom_orphan(struct g_consumer *cp)
 	 */
 	vd->vdev_remove_wanted = B_TRUE;
 	spa_async_request(vd->vdev_spa, SPA_ASYNC_REMOVE);
-}
-
-static void
-vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
-{
-	vdev_t *vd;
-	spa_t *spa;
-	char *physpath;
-	int error, physpath_len;
-
-	g_topology_assert();
-	vd = cp->private;
-
-	if (strcmp(attr, "GEOM::rotation_rate") == 0) {
-		vdev_geom_set_rotation_rate(vd, cp);
-		return;
-	}
-
-	if (strcmp(attr, "GEOM::physpath") != 0)
-		return;
-
-	if (g_access(cp, 1, 0, 0) != 0)
-		return;
-
-	/*
-	 * Record/Update physical path information for this device.
-	 */
-	spa = vd->vdev_spa;
-	physpath_len = MAXPATHLEN;
-	physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
-	error = g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
-	g_access(cp, -1, 0, 0);
-	if (error == 0) {
-		char *old_physpath;
-
-		old_physpath = vd->vdev_physpath;
-		vd->vdev_physpath = spa_strdup(physpath);
-		spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
-
-		if (old_physpath != NULL) {
-			int held_lock;
-
-			held_lock = spa_config_held(spa, SCL_STATE, RW_WRITER);
-			if (held_lock == 0) {
-				g_topology_unlock();
-				spa_config_enter(spa, SCL_STATE, FTAG,
-				    RW_WRITER);
-			}
-
-			spa_strfree(old_physpath);
-
-			if (held_lock == 0) {
-				spa_config_exit(spa, SCL_STATE, FTAG);
-				g_topology_lock();
-			}
-		}
-	}
-	g_free(physpath);
 }
 
 static struct g_consumer *

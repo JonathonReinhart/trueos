@@ -195,7 +195,6 @@ device		twe			# 3ware ATA RAID
 # NVM Express (NVMe) support
 device		nvme			# base NVMe driver
 device		nvd			# expose NVMe namespaces as disks, depends on nvme
->>>>>>> hardened/stable/10
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller

@@ -17,6 +17,7 @@ SRCS=		ucl_emitter.c \
 WARNS=		1
 CFLAGS+=	-I${LIBUCL}/include \
 		-I${LIBUCL}/src \
-		-I${LIBUCL}/uthash
+		-I${LIBUCL}/uthash \
+		-I${LIBUCL}/klib
 
 .include <bsd.lib.mk>

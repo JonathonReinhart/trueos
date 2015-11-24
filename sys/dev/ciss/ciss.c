@@ -2415,8 +2415,7 @@ ciss_wait_request(struct ciss_request *cr, int timeout)
 	return(error);
 
     while ((cr->cr_flags & CISS_REQ_SLEEP) && (error != EWOULDBLOCK)) {
-	error = msleep_sbt(cr, &cr->cr_sc->ciss_mtx, PRIBIO, "cissREQ",
-	    SBT_1MS * timeout, 0, 0);
+	error = msleep(cr, &cr->cr_sc->ciss_mtx, PRIBIO, "cissREQ", (timeout * hz) / 1000);
     }
     return(error);
 }

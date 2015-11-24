@@ -3437,9 +3437,7 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 			     target, 0);
 
     if (status == CAM_REQ_CMP) {
-	xpt_path_lock(path);
 	periph = cam_periph_find(path, NULL);
-	xpt_path_unlock(path);
 	xpt_free_path(path);
 	if (periph != NULL) {
 		sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
